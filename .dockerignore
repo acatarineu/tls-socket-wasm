@@ -1,0 +1,8 @@
+lib/build
+.gitmodules
+.git
+Makefile
+.gitignore
+docker-helpers
+README
+dist
