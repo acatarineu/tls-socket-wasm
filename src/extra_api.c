@@ -66,4 +66,3 @@ int init_client(br_ssl_client_context* sc, br_x509_minimal_context* xc, unsigned
 	 */
 	return br_ssl_client_reset(sc, host, 0);
 }
-

@@ -53,6 +53,7 @@ EMFLAGS=${!EMFLAGS}
     -Wunused-variable -Wundef -Wformat-security -Wshadow \
     -o "$DISTFOLDER/tls-socket-$EMNAME.js" \
     $SCRIPTPATH/src/extra_api.c \
+    $LIBFOLDER/tools/errors.c \
     $LIBFOLDER/build/libbearssl.a \
     -s EXPORTED_FUNCTIONS="[\
        '_get_br_ssl_client_context_size', \
@@ -72,5 +73,11 @@ EMFLAGS=${!EMFLAGS}
        '_br_ssl_engine_recvapp_ack', \
        '_br_ssl_engine_sendrec_buf', \
        '_br_ssl_engine_sendrec_ack', \
-       '_GS_getStateSize']")
+       '_br_ssl_engine_recvrec_buf', \
+       '_br_ssl_engine_recvrec_ack', \
+       '_br_ssl_engine_sendapp_buf', \
+       '_br_ssl_engine_sendapp_ack', \
+       '_br_ssl_engine_init_rand', \
+       '_br_ssl_engine_flush', \
+       '_find_error_name']")
 done
