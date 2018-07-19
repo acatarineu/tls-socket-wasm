@@ -1,0 +1,5 @@
+- Simple 'minifetch' implementation with just (url, method, body).
+- Parse response with http-parser library.
+- Get parameters
+- Add request body (Content-length? Content-encoding?)
+- Add request headers

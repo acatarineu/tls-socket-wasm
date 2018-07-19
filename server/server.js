@@ -17,15 +17,23 @@ const wss = new WebSocketServer({ port: LISTEN_PORT });
 wss.on('connection', (ws) => {
   let buffer = [];
   const socket = new net.Socket();
-  socket.on('data', data => {
+  socket.connect(TARGET_PORT, TARGET_HOST)
+  .on('connect', () => {
+    log('socket connected');
+  })
+  .on('data', data => {
     log('socket -> ws', data);
     ws.send(data);
-  });
-  socket.on('close', () => {
-    log('socket close');
+  })
+  .on('close', (x) => {
+    log('socket close', x);
     ws.close();
-  });
-  socket.on('error', (e) => {
+  })
+  .on('end', (x) => {
+    log('socket end', x);
+    ws.close();
+  })
+  .on('error', (e) => {
     log('socket error', e);
     ws.terminate();
   });
@@ -44,8 +52,10 @@ wss.on('connection', (ws) => {
   });
   ws.on('error', (e) => {
     log('ws error', e);
-    socket.destroy();
+    socket.end();
   });
-
-  socket.connect(TARGET_PORT, TARGET_HOST);
+  ws.on('close', () => {
+    log('ws close');
+    socket.end();
+  });
 });
