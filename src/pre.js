@@ -704,7 +704,7 @@ function minifetch(makeDataChannel, url, options) {
       if (typeof options.method !== 'string') {
         throw new Error('Method must be a string');
       }
-      var whitelistedMethods = ['GET', 'POST'];
+      var whitelistedMethods = ['GET', 'POST', 'CONNECT'];
       method = options.method.toUpperCase();
       if (whitelistedMethods.indexOf(method) === -1) {
         throw new Error('Method "' + method + '" is not supported');
@@ -728,11 +728,12 @@ function minifetch(makeDataChannel, url, options) {
   if (protocol !== 'http:' && protocol !== 'https:') {
     throw new Error('Unsupported protocol "' + protocol + '"');
   }
-  url.port = url.port || (protocol === 'http:' ? '80' : '443');
+  var port = url.port || (protocol === 'http:' ? '80' : '443');
+  var pathname = method === 'CONNECT' ? url.host : url.pathname;
 
   // Let's build the raw request, easy!
   var request = '';
-  request += method + ' ' + url.pathname + ' HTTP/1.1\r\n';
+  request += method + ' ' + pathname + ' HTTP/1.1\r\n';
   request += 'Host: ' + url.host + '\r\n';
   request += 'Connection: close\r\n'; // keep-alive?
   request += '\r\n';
@@ -742,7 +743,7 @@ function minifetch(makeDataChannel, url, options) {
   // For simplicity, assuming responses will be small
   return initPromise
     .then(function() {
-      return makeDataChannel(url.hostname, url.port);
+      return makeDataChannel(url.hostname, port);
     })
     .then(function(socket) {
       return protocol === 'https:' ? new TLSSocket(url.hostname, socket, options) : socket;
@@ -773,7 +774,6 @@ function minifetch(makeDataChannel, url, options) {
         parser[kOnHeadersComplete] = function(_versionMajor, _versionMinor, _headers, _method,
           _url, _statusCode, _statusMessage, _upgrade, _shouldKeepAlive)
         {
-          log('kOnHeadersComplete', versionMajor, versionMinor, headers, statusCode, statusMessage, upgrade, shouldKeepAlive);
           versionMajor = _versionMajor;
           versionMinor = _versionMinor;
           headers = _headers || [];
@@ -787,6 +787,10 @@ function minifetch(makeDataChannel, url, options) {
             realHeaders.set(headers[i], headers[i + 1]);
           }
           headers = realHeaders;
+          if (method === 'CONNECT') {
+            // See skipBody
+            return 2;
+          }
         };
         parser[kOnBody] = function(b, start, len) {
           log('kOnBody', b, start, len);
@@ -806,6 +810,7 @@ function minifetch(makeDataChannel, url, options) {
             statusText: statusMessage,
             headers: new Headers(headers)
           });
+          response._socket = socket;
           resolve(response);
         };
         parser[kOnExecute] = function() {
