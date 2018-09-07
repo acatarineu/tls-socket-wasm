@@ -42,11 +42,13 @@ EMFLAGS=${!EMFLAGS}
 
 ( mkdir -p $DISTFOLDER && \
   emcc ${EMFLAGS} \
-    --pre-js $SCRIPTPATH/src/pre.js \
+    --pre-js $SCRIPTPATH/src/api_pre.js \
+    --post-js $SCRIPTPATH/src/api_post.js \
     -I$LIBFOLDER/inc \
     -s SINGLE_FILE=1 \
     -s MODULARIZE=1 \
     -s NO_EXIT_RUNTIME=1 \
+    -s BINARYEN_ASYNC_COMPILATION=0 \
     -s ASSERTIONS=$EMCC_ASSERTIONS \
     $EMCC_FLAGS \
     -std=c11 -Wall -Wextra -Wno-strict-prototypes -Wunused-value -Wcast-align \

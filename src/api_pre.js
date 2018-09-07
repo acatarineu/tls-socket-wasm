@@ -450,11 +450,6 @@ function parseErrorCode(code) {
 var _TextEncoder = typeof TextEncoder !== 'undefined' ? TextEncoder : require('util').TextEncoder;
 var encoder = new _TextEncoder();
 
-var initResolve, initReject;
-var initPromise = new Promise(function(resolve, reject) {
-  initResolve = resolve;
-  initReject = reject;
-});
 
 function toByteArray(data) {
   if (typeof data === 'string') {
@@ -689,7 +684,7 @@ function minifetch(makeDataChannel, url, options) {
   if (options === null || (typeof options !== "object" && options !== undefined)) {
     throw new Error("Options must be an object or undefined");
   }
-  var whitelistedOptions = ['method', 'body', 'debug'];
+  var whitelistedOptions = ['method', 'body', 'debug', 'headers', 'timeout'];
   var method = 'GET';
   var body = undefined;
   if (options) {
@@ -699,6 +694,9 @@ function minifetch(makeDataChannel, url, options) {
       if (whitelistedOptions.indexOf(keys[i]) === -1) {
         throw new Error('Option "' + keys[i] + '" is not supported');
       }
+    }
+    if (options.headers !== undefined) {
+      options.headers = new Headers(options.headers);
     }
     if (options.method !== undefined) {
       if (typeof options.method !== 'string') {
@@ -736,12 +734,24 @@ function minifetch(makeDataChannel, url, options) {
   request += method + ' ' + pathname + ' HTTP/1.1\r\n';
   request += 'Host: ' + url.host + '\r\n';
   request += 'Connection: close\r\n'; // keep-alive?
+  if (options.headers) {
+    options.headers.forEach(function(value, key) {
+      // TODO: need to be more strict
+      request += key + ': ' + value + '\r\n';
+    });
+  }
   request += '\r\n';
 
-  // TODO: add body!
+  request = (new TextEncoder()).encode(request);
+  if (body) {
+    var tmp = new Uint8Array(request.length + body.length);
+    tmp.set(request, 0);
+    tmp.set(body, request.length);
+    request = tmp;
+  }
 
   // For simplicity, assuming responses will be small
-  return initPromise
+  return Promise.resolve()
     .then(function() {
       return makeDataChannel(url.hostname, port);
     })
@@ -750,6 +760,12 @@ function minifetch(makeDataChannel, url, options) {
     })
     .then(function(socket) {
       return new Promise(function (resolve, reject) {
+        if (options.timeout && typeof options.timeout === 'number') {
+          setTimeout(function() {
+            socket.close();
+            reject(new Error('minifetch timeout'));
+          }, options.timeout);
+        }
         var parser = new HTTPParser(HTTPParser.RESPONSE);
         var kOnHeaders = HTTPParser.kOnHeaders | 0;
         var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
@@ -812,6 +828,7 @@ function minifetch(makeDataChannel, url, options) {
           });
           response._socket = socket;
           resolve(response);
+          socket.close();
         };
         parser[kOnExecute] = function() {
           log('kOnExecute');
@@ -819,7 +836,8 @@ function minifetch(makeDataChannel, url, options) {
         // TODO: timeout? AbortController?
         socket.onerror = function(error) {
           log('socket error', error);
-          reject(error);
+          socket.close();
+          reject(error || new Error('Socket error'));
           parser.close();
         };
         socket.onmessage = function(message) {
@@ -829,40 +847,20 @@ function minifetch(makeDataChannel, url, options) {
           var len = data.length;
           var ret = parser.execute(data);
           if (ret !== len) {
-            reject(ret);
+            socket.close();
+            reject(new Error('Invalid http response'));
           }
         };
         socket.onclose = function() {
           log('onclose(1)');
           var ret = parser.finish();
           log('onclose(2)', ret);
-          reject(ret);
+          reject(new Error('Closed before valid http response'));
           parser.close();
         };
         socket.send(request);
       });
     });
-}
-
-function initStaticMembers() {
-  TLSSocket.BR_ERR_OK = Module._get_BR_ERR_OK();
-  TLSSocket.BR_SSL_CLOSED = Module._get_BR_SSL_CLOSED();
-  TLSSocket.BR_SSL_RECVAPP = Module._get_BR_SSL_RECVAPP();
-  TLSSocket.BR_SSL_SENDAPP = Module._get_BR_SSL_SENDAPP();
-  TLSSocket.BR_SSL_RECVREC = Module._get_BR_SSL_RECVREC();
-  TLSSocket.BR_SSL_SENDREC = Module._get_BR_SSL_SENDREC();
-}
-
-if (Module['calledRun']) {
-    initStaticMembers();
-    initResolve();
-  } else {
-    var old = Module['onRuntimeInitialized'];
-    Module['onRuntimeInitialized'] = function() {
-      if (old) old();
-      initStaticMembers();
-      initResolve();
-    };
 }
 
 
