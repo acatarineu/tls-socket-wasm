@@ -49,7 +49,6 @@ EMFLAGS=${!EMFLAGS}
     -s MODULARIZE=1 \
     -s NO_EXIT_RUNTIME=1 \
     -s ASSERTIONS=$EMCC_ASSERTIONS \
-    -s EXPORT_ES6=1 \
     $EMCC_FLAGS \
     -std=c11 -Wall -Wextra -Wno-strict-prototypes -Wunused-value -Wcast-align \
     -Wunused-variable -Wundef -Wformat-security -Wshadow \
